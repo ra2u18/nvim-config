@@ -26,6 +26,31 @@ return {
     vim.keymap.set('n', '<F5>', dap.step_back)
     vim.keymap.set('n', '<F12>', dap.restart)
 
+    -- Setting up TypeScript debugging configuration
+    dap.adapters.node2 = {
+      type = 'executable',
+      command = 'node',
+      args = { '/home/linuxadmin/dev/microsoft/vscode-node-debug2/out/src/nodeDebug.js' },
+    }
+
+    dap.configurations.typescript = {
+      {
+        type = 'node2',
+        request = 'launch',
+        name = 'Debug local file',
+        program = '${file}',
+        cwd = vim.fn.getcwd(),
+        runtimeArgs = { '-r', 'ts-node/register' },
+        sourceMaps = true,
+        protocol = 'inspector',
+        console = 'integratedTerminal',
+        env = {
+          AWS_REGION = 'eu-central-1',
+        },
+        outFiles = { '${workspaceFolder}/dist/**/*.js' },
+      },
+    }
+
     dap.listeners.before.attach.dapui_config = function()
       ui.open()
     end
@@ -41,5 +66,12 @@ return {
     dap.listeners.before.event_exited.dapui_config = function()
       ui.close()
     end
+
+    local function terminate_and_close_dap()
+      dap.terminate()
+      ui.close()
+    end
+
+    vim.keymap.set('n', '<leader>dq', terminate_and_close_dap)
   end,
 }
