@@ -39,8 +39,15 @@ return {
         },
       },
     },
+    dap = {
+      adapter = {
+        type = 'executable',
+        command = 'lldb-vscode',
+        name = 'rt_lldb',
+      },
+    },
   },
   config = function(_, opts)
-    vim.g.rustaceanvim = vim.tbl_deep_extend('keep', vim.g.rustaceanvim or {}, opts or {})
+    vim.g.rustaceanvim = vim.tbl_deep_extend('force', {}, opts or {})
   end,
 }

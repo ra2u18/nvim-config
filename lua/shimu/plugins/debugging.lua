@@ -1,3 +1,19 @@
+-- Define supported file types
+local js_based_languages = { 'typescript', 'javascript', 'typescriptreact', 'javascriptreact', 'vue' }
+
+-- Function to load launch.json configurations
+local function load_launch_json()
+  local launch_json_path = vim.fn.findfile('.vscode/launch.json', '.;')
+  if launch_json_path ~= '' then
+    require('dap.ext.vscode').load_launchjs(launch_json_path, {
+      ['pwa-node'] = js_based_languages,
+      ['node'] = js_based_languages,
+      ['chrome'] = js_based_languages,
+      ['pwa-chrome'] = js_based_languages,
+    })
+  end
+end
+
 return {
   'mfussenegger/nvim-dap',
   dependencies = {
@@ -26,9 +42,6 @@ return {
 
     -- DAP UI setup
     dapui.setup()
-
-    -- Define supported file types
-    local js_based_languages = { 'typescript', 'javascript', 'typescriptreact', 'javascriptreact', 'vue' }
 
     -- Configure DAP for JavaScript/TypeScript
     for _, language in ipairs(js_based_languages) do
@@ -78,18 +91,19 @@ return {
       }
     end
 
-    -- Function to load launch.json configurations
-    local function load_launch_json()
-      local launch_json_path = vim.fn.findfile('.vscode/launch.json', '.;')
-      if launch_json_path ~= '' then
-        require('dap.ext.vscode').load_launchjs(launch_json_path, {
-          ['pwa-node'] = js_based_languages,
-          ['node'] = js_based_languages,
-          ['chrome'] = js_based_languages,
-          ['pwa-chrome'] = js_based_languages,
-        })
-      end
-    end
+    dap.configurations.rust = {
+      {
+        name = 'Launch',
+        type = 'rt_lldb',
+        request = 'launch',
+        program = function()
+          return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file')
+        end,
+        cwd = '${workspaceFolder}',
+        stopOnEntry = false,
+        args = {},
+      },
+    }
 
     -- Load launch.json before starting debugging
     dap.listeners.before.launch.load_launch_json = load_launch_json
@@ -100,13 +114,6 @@ return {
     vim.keymap.set('n', '<leader>dsi', dap.step_into, { desc = 'Step Into' })
     vim.keymap.set('n', '<leader>dso', dap.step_over, { desc = 'Step Over' })
     vim.keymap.set('n', '<leader>dsu', dap.step_out, { desc = 'Step Out' })
-    vim.keymap.set('n', '<leader>dr', dap.repl.open, { desc = 'Open REPL' })
-    vim.keymap.set('n', '<leader>dl', dap.run_last, { desc = 'Run Last' })
-    vim.keymap.set('n', '<leader>dui', dapui.toggle, { desc = 'Toggle UI' })
-    vim.keymap.set('n', '<leader>dro', function()
-      dap.repl.open()
-      dapui.toggle()
-    end, { desc = 'Reopen UI' })
 
     -- Auto open/close DAP UI
     dap.listeners.after.event_initialized['dapui_config'] = function()
@@ -119,12 +126,14 @@ return {
       dapui.close()
     end
 
-    -- Function to terminate DAP session and close UI
-    local function terminate_and_close_dap()
+    local function terminate_debug_session()
+      print 'Terminating debug session...'
       dap.terminate()
       dapui.close()
+      vim.fn.jobstart 'pkill -f "node.*vitest"'
+      print 'Debug session terminated.'
     end
 
-    vim.keymap.set('n', '<leader>dq', terminate_and_close_dap, { desc = 'Terminate and Close' })
+    vim.keymap.set('n', '<leader>dq', terminate_debug_session, { desc = 'Terminate and Close' })
   end,
 }
