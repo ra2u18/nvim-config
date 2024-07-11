@@ -88,6 +88,45 @@ return {
           sourceMaps = true,
           userDataDir = false,
         },
+        {
+          type = 'pwa-node',
+          request = 'launch',
+          name = 'Debug Vitest Tests (Monorepo)',
+          runtimeExecutable = 'pnpm',
+          runtimeArgs = function()
+            local current_file = vim.fn.expand '%:p'
+            local package_root = vim.fn.finddir('packages', current_file .. ';')
+            if package_root ~= '' then
+              local package_name = vim.fn.fnamemodify(vim.fn.expand(package_root .. '/..'), ':t')
+              return {
+                'vitest',
+                '--inspect-brk', -- This enables the inspector
+                '--no-coverage',
+                '--testTimeout=100000',
+                '--root',
+                vim.fn.fnamemodify(package_root, ':h'),
+                '--config',
+                'packages/' .. package_name .. '/vitest.config.ts',
+              }
+            else
+              return {
+                'vitest',
+                '--inspect-brk', -- This enables the inspector
+                '--no-coverage',
+                '--testTimeout=100000',
+              }
+            end
+          end,
+          cwd = '${workspaceFolder}',
+          console = 'integratedTerminal',
+          internalConsoleOptions = 'neverOpen',
+          protocol = 'inspector',
+          sourceMaps = true,
+          resolveSourceMapLocations = {
+            '${workspaceFolder}/**',
+            '!**/node_modules/**',
+          },
+        },
       }
     end
 

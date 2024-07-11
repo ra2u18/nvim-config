@@ -22,6 +22,45 @@ local function read_package_json(path)
   return nil
 end
 
+local function create_vitest_adapter()
+  return require 'neotest-vitest' {
+    vitestCommand = 'pnpm vitest',
+    env = {
+      CI = nil,
+    },
+    cwd = function(path)
+      -- Find the closest package.json
+      local package_json = vim.fn.findfile('package.json', path .. ';')
+      if package_json ~= '' then
+        return vim.fn.fnamemodify(package_json, ':h')
+      end
+      return vim.fn.getcwd()
+    end,
+    filter_dir = function(name, rel_path, root)
+      -- Exclude common directories we don't want to search
+      if name == 'node_modules' or name == 'dist' or name == '.git' then
+        return false
+      end
+
+      -- Check if we're in the packages directory
+      if vim.fn.fnamemodify(rel_path, ':h') == 'packages' then
+        -- Only allow directories that are direct children of 'packages'
+        return vim.fn.isdirectory(root .. '/' .. rel_path) == 1
+      end
+
+      -- Allow searching in 'src' and '__tests__' directories within packages
+      local in_package = string.match(rel_path, '^packages/[^/]+/')
+      if in_package then
+        return name == 'src' or name == '__tests__'
+      end
+
+      -- For other cases, allow the directory
+      return true
+    end,
+    -- Add any other Vitest-specific options here
+  }
+end
+
 local function create_jest_adapter()
   return require 'neotest-jest' {
     jestCommand = 'pnpm test --',
@@ -51,49 +90,6 @@ local function create_jest_adapter()
       debug_print('Falling back to default CWD: ' .. default_cwd)
       return default_cwd
     end,
-  }
-end
-
-local function create_vitest_adapter()
-  return require 'neotest-vitest' {
-    vitestCommand = 'pnpm test --',
-    vitestConfigFile = function(file)
-      debug_print('Looking for Vitest config for file: ' .. file)
-      local package_root = string.match(file, '(.-/packages/[^/]+/)')
-      if package_root then
-        local config_paths = {
-          package_root .. 'vitest.config.ts',
-          package_root .. 'vitest.config.js',
-          package_root .. 'vite.config.ts',
-          package_root .. 'vite.config.js',
-        }
-        for _, config_path in ipairs(config_paths) do
-          debug_print('Checking for Vitest config at: ' .. config_path)
-          if vim.fn.filereadable(config_path) == 1 then
-            debug_print('Found Vitest config at: ' .. config_path)
-            return config_path
-          end
-        end
-      end
-      debug_print 'No Vitest config found'
-    end,
-    cwd = function(file)
-      debug_print('Determining CWD for file: ' .. file)
-      if string.find(file, '/packages/') then
-        local cwd = string.match(file, '(.-/packages/[^/]+/)')
-        if cwd then
-          debug_print('CWD set to: ' .. cwd)
-          return cwd
-        end
-      end
-      local default_cwd = vim.fn.getcwd()
-      debug_print('Falling back to default CWD: ' .. default_cwd)
-      return default_cwd
-    end,
-    env = {
-      CI = nil,
-      NODE_ENV = nil,
-    },
   }
 end
 
