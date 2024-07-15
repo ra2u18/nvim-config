@@ -2,15 +2,43 @@
 local js_based_languages = { 'typescript', 'javascript', 'typescriptreact', 'javascriptreact', 'vue' }
 
 -- Function to load launch.json configurations
+-- Function to find the nearest launch.json file
+local function find_nearest_launch_json()
+  local current_file = vim.fn.expand '%:p'
+  local current_dir = vim.fn.fnamemodify(current_file, ':h')
+  local root_dir = vim.fn.getcwd()
+
+  while current_dir ~= root_dir and current_dir ~= '/' do
+    local launch_json_path = current_dir .. '/.vscode/launch.json'
+    if vim.fn.filereadable(launch_json_path) == 1 then
+      return launch_json_path
+    end
+    current_dir = vim.fn.fnamemodify(current_dir, ':h')
+  end
+
+  -- Check root directory as a fallback
+  local root_launch_json = root_dir .. '/.vscode/launch.json'
+  if vim.fn.filereadable(root_launch_json) == 1 then
+    return root_launch_json
+  end
+
+  return nil
+end
+
+-- Function to load launch.json configurations
 local function load_launch_json()
-  local launch_json_path = vim.fn.findfile('.vscode/launch.json', '.;')
-  if launch_json_path ~= '' then
+  local launch_json_path = find_nearest_launch_json()
+
+  if launch_json_path then
+    print('Loading launch.json from: ' .. launch_json_path)
     require('dap.ext.vscode').load_launchjs(launch_json_path, {
       ['pwa-node'] = js_based_languages,
       ['node'] = js_based_languages,
       ['chrome'] = js_based_languages,
       ['pwa-chrome'] = js_based_languages,
     })
+  else
+    print 'No launch.json found.'
   end
 end
 
@@ -149,7 +177,6 @@ return {
 
     -- Keymappings
     vim.keymap.set('n', '<leader>db', dap.toggle_breakpoint, { desc = 'Toggle Breakpoint' })
-    vim.keymap.set('n', '<leader>dc', dap.continue, { desc = 'Continue' })
     vim.keymap.set('n', '<leader>dsi', dap.step_into, { desc = 'Step Into' })
     vim.keymap.set('n', '<leader>dso', dap.step_over, { desc = 'Step Over' })
     vim.keymap.set('n', '<leader>dsu', dap.step_out, { desc = 'Step Out' })
@@ -159,10 +186,10 @@ return {
       dapui.open()
     end
     dap.listeners.before.event_terminated['dapui_config'] = function()
-      dapui.close()
+      -- dapui.close()
     end
     dap.listeners.before.event_exited['dapui_config'] = function()
-      dapui.close()
+      -- dapui.close()
     end
 
     local function terminate_debug_session()
@@ -174,5 +201,12 @@ return {
     end
 
     vim.keymap.set('n', '<leader>dq', terminate_debug_session, { desc = 'Terminate and Close' })
+
+    local function choose_sessions(opts)
+      load_launch_json()
+      dap.continue(opts)
+    end
+
+    vim.keymap.set('n', '<leader>dc', choose_sessions, { desc = 'Continue' })
   end,
 }
